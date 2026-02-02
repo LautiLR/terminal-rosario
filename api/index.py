@@ -54,7 +54,7 @@ def get_global():
     res = {}
     for k,s in idx.items():
         try:
-            h = yf.Ticker(s).history(period="3mo")
+            h = yf.Ticker(s).history(period="1mo")
             if not h.empty:
                 curr, prev = h['Close'].iloc[-1], h['Close'].iloc[-2]
                 res[k] = {"precio": curr, "variacion": ((curr-prev)/prev)*100, "history": [{"x":d.strftime('%Y-%m-%d'),"y":round(p,2)} for d,p in zip(h.index, h['Close'])], "moneda": "ARS" if k=="merval" else "USD"}
@@ -271,4 +271,5 @@ def get_news(query: str):
     try:
         f = feedparser.parse(f"https://news.google.com/rss/search?q={query.replace('.BA','')}+finanzas+when:7d&hl=es-419&gl=AR&ceid=AR:es-419")
         return [{"titulo":e.title,"link":e.link,"fuente":e.source.get('title'),"fecha":e.published[:16]} for e in f.entries[:10]]
+
     except: return []
