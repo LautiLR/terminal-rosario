@@ -33,23 +33,26 @@
     <main class="container mx-auto p-4 flex-grow">
         <div id="tab-home" class="fade-in">
             <div id="dolar-bar" class="flex flex-wrap gap-4 mb-6"></div>
+            <h2 class="text-sm font-bold text-slate-500 uppercase mb-4 tracking-widest">Mercados Globales</h2>
             <div id="home-charts" class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="metric-card animate-pulse text-center text-slate-500">Iniciando conexión con API...</div>
+                <div class="metric-card animate-pulse text-center text-slate-500">Conectando con la terminal...</div>
             </div>
         </div>
 
         <div id="tab-monitor" class="hidden fade-in">
             <div class="max-w-xl mx-auto mb-8">
-                <div class="flex gap-2 bg-slate-800 p-2 rounded-full border border-slate-700">
-                    <input id="tickerInput" type="text" placeholder="Ej: GGAL.BA o AAPL" class="w-full bg-transparent border-none text-white px-4 focus:ring-0 uppercase font-bold">
-                    <button onclick="fetchData()" class="bg-blue-600 text-white w-12 h-10 rounded-full"><i class="fas fa-search"></i></button>
+                <div class="flex gap-2 bg-slate-800 p-2 rounded-full border border-slate-700 shadow-xl">
+                    <input id="tickerInput" type="text" placeholder="Ej: GGAL.BA o AAPL" class="w-full bg-transparent border-none text-white px-4 focus:ring-0 uppercase font-bold" onkeypress="if(event.key==='Enter') fetchData()">
+                    <button id="searchBtn" onclick="fetchData()" class="bg-blue-600 hover:bg-blue-500 text-white w-12 h-10 rounded-full transition">
+                        <i class="fas fa-search"></i>
+                    </button>
                 </div>
             </div>
             <div id="monitor-content" class="hidden">
-                <div class="metric-card mb-6">
+                <div class="metric-card mb-6 bg-gradient-to-br from-slate-800 to-slate-900">
                     <h2 id="comp-name" class="text-2xl font-black text-white">--</h2>
                     <div class="flex items-baseline gap-2 mt-2">
-                        <span id="price" class="text-5xl font-black">--</span>
+                        <span id="price" class="text-5xl font-black tracking-tighter">--</span>
                         <span id="change" class="text-xl font-bold">--</span>
                     </div>
                 </div>
@@ -78,57 +81,90 @@
                 db.innerHTML = "";
                 if(d.dolares) {
                     Object.values(d.dolares).forEach(v => {
-                        db.innerHTML += `<div class="bg-slate-800 p-3 rounded-lg border border-slate-700">
-                            <p class="text-[10px] font-bold text-slate-500 uppercase">${v.nombre}</p>
-                            <p class="text-white font-black">$${v.venta}</p>
-                        </div>`;
+                        db.innerHTML += `
+                            <div class="bg-slate-800 p-3 rounded-lg border border-slate-700 min-w-[120px]">
+                                <p class="text-[10px] font-bold text-slate-500 uppercase">${v.nombre}</p>
+                                <p class="text-white font-black">$${v.venta}</p>
+                            </div>`;
                     });
                 }
 
-                // Gráficos Home
+                // Índices
                 const container = document.getElementById('home-charts');
                 container.innerHTML = "";
                 Object.entries(d.indices).forEach(([key, val]) => {
                     if(!val) return;
                     const div = document.createElement('div');
                     div.className = "metric-card";
-                    div.innerHTML = `<h3 class="font-bold text-slate-400 uppercase text-xs">${key}</h3>
-                                     <p class="text-2xl font-black">$${val.precio.toLocaleString()}</p>
-                                     <div id="chart-${key}"></div>`;
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-slate-400 uppercase text-xs">${key}</h3>
+                            <span class="text-xs font-bold ${val.variacion >= 0 ? 'text-green-400' : 'text-red-400'}">${val.variacion.toFixed(2)}%</span>
+                        </div>
+                        <p class="text-2xl font-black text-white">$${val.precio.toLocaleString()}</p>
+                        <div id="chart-${key}" class="mt-4"></div>`;
                     container.appendChild(div);
-                    new ApexCharts(div.querySelector('div'), {
+                    
+                    new ApexCharts(div.querySelector('div[id^="chart-"]'), {
                         series: [{ data: val.history }],
-                        chart: { type: 'area', height: 120, sparkline: { enabled: true } },
+                        chart: { type: 'area', height: 100, sparkline: { enabled: true }, animations: { enabled: false } },
                         stroke: { curve: 'smooth', width: 2 },
+                        fill: { type: 'gradient', gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.1 } },
                         colors: [val.variacion >= 0 ? '#4ade80' : '#f87171']
                     }).render();
                 });
-            } catch (e) { console.error("Error API:", e); }
+            } catch (e) { 
+                console.error("Error API Global:", e);
+                document.getElementById('home-charts').innerHTML = "<p class='text-red-500 text-sm'>Error de conexión. Reintentando...</p>";
+            }
         }
 
         async function fetchData() {
             const t = document.getElementById('tickerInput').value.toUpperCase();
             if(!t) return;
+            
+            const btn = document.getElementById('searchBtn');
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            
             try {
                 const res = await fetch(`/api/quote/${t}`);
+                if (!res.ok) throw new Error("No encontrado");
                 const d = await res.json();
+                
                 document.getElementById('monitor-content').classList.remove('hidden');
                 document.getElementById('comp-name').innerText = d.name;
-                document.getElementById('price').innerText = d.precio.toLocaleString();
-                const c = document.getElementById('change');
-                c.innerText = d.rendimiento.dia.toFixed(2) + "%";
-                c.className = d.rendimiento.dia >= 0 ? "text-xl font-bold text-green-400" : "text-xl font-bold text-red-400";
+                document.getElementById('price').innerText = d.precio.toLocaleString('es-AR', {minimumFractionDigits: 2});
                 
-                // Chart TradingView
+                const c = document.getElementById('change');
+                const variacion = d.rendimiento.dia || 0;
+                c.innerText = (variacion >= 0 ? "+" : "") + variacion.toFixed(2) + "%";
+                c.className = variacion >= 0 ? "text-xl font-bold text-green-400" : "text-xl font-bold text-red-400";
+                
+                // Gráfico TradingView
                 document.getElementById('tv_chart_container').innerHTML = "";
+                let tvSymbol = t.includes('.BA') ? "BCBA:" + t.replace('.BA','') : t;
+                
                 new TradingView.widget({
-                    "autosize": true, "symbol": t.includes('.BA') ? "BCBA:"+t.replace('.BA','') : t,
-                    "interval": "D", "theme": "dark", "style": "1", "locale": "es", "container_id": "tv_chart_container"
+                    "autosize": true,
+                    "symbol": tvSymbol,
+                    "interval": "D",
+                    "timezone": "America/Argentina/Buenos_Aires",
+                    "theme": "dark",
+                    "style": "1",
+                    "locale": "es",
+                    "enable_publishing": false,
+                    "hide_side_toolbar": false,
+                    "container_id": "tv_chart_container"
                 });
-            } catch(e) { alert("Ticker no encontrado"); }
+            } catch(e) { 
+                alert("Ticker no encontrado. Prueba con GGAL.BA o AAPL"); 
+            } finally {
+                btn.innerHTML = '<i class="fas fa-search"></i>';
+            }
         }
 
-        window.onload = loadGlobalData;
+        // Ejecutar al cargar
+        document.addEventListener('DOMContentLoaded', loadGlobalData);
     </script>
 </body>
 </html>
