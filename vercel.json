@@ -7,5 +7,10 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "api/index.py" },
     { "source": "/(.*)", "destination": "public/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 10
+    }
+  }
 }
