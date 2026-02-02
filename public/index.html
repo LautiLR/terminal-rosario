@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal Rosario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    
+    <style>
+        body { background-color: #0b1120; color: #cbd5e1; }
+        .hidden { display: none; }
+        .fade-in { animation: fadeIn 0.4s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Botones de Navegación */
+        .nav-btn { color: #64748b; border-bottom: 2px solid transparent; transition: all 0.3s; cursor: pointer; }
+        .nav-btn:hover { color: #e2e8f0; }
+        .nav-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+
+        /* Botones de Filtro (Ranking) */
+        .filter-btn { background: #1e293b; color: #94a3b8; padding: 4px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: bold; border: 1px solid #334155; transition: 0.2s; }
+        .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+        /* Tarjetas */
+        .metric-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1rem; }
+        .dolar-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; border-radius: 8px; padding: 8px; min-width: 130px; }
+    </style>
+</head>
+<body class="font-sans antialiased min-h-screen flex flex-col">
+
+    <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 backdrop-blur-md bg-opacity-90">
+        <div class="container mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center h-16">
+                <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent cursor-pointer" onclick="switchTab('home')">
+                    🏛️ Terminal Rosario <span class="text-xs text-sky-400 border border-sky-900 bg-sky-900/20 rounded px-1 ml-1">V14.0</span>
+                </h1>
+                <div class="flex space-x-6 text-sm font-semibold mt-2 md:mt-0 overflow-x-auto w-full md:w-auto">
+                    <button onclick="switchTab('home')" id="btn-home" class="nav-btn active py-4"><i class="fas fa-home"></i> INICIO</button>
+                    <button onclick="switchTab('monitor')" id="btn-monitor" class="nav-btn py-4"><i class="fas fa-chart-line"></i> MONITOR</button>
+                    <button onclick="switchTab('heatmap')" id="btn-heatmap" class="nav-btn py-4"><i class="fas fa-th"></i> HEATMAP</button>
+                    <button onclick="switchTab('crypto')" id="btn-crypto" class="nav-btn py-4"><i class="fab fa-bitcoin"></i> CRYPTO</button>
+                    <button onclick="switchTab('groups')" id="btn-groups" class="nav-btn py-4"><i class="fas fa-layer-group"></i> GRUPOS</button>
+                    <button onclick="switchTab('dividends')" id="btn-dividends" class="nav-btn py-4"><i class="fas fa-hand-holding-usd"></i> DIVIDENDOS</button>
+                    <button onclick="switchTab('news')" id="btn-news" class="nav-btn py-4"><i class="fas fa-newspaper"></i> NOTICIAS</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-6 flex-grow">
+
+        <div id="tab-home" class="fade-in">
+            <div id="dolar-bar" class="flex flex-wrap gap-4 mb-8 justify-center md:justify-start"></div>
+            
+            <h2 class="text-lg font-bold text-slate-200 mb-4 pl-2 border-l-4 border-blue-500">Mercados Globales</h2>
+            <div id="home-charts-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="metric-card h-64 animate-pulse flex items-center justify-center text-slate-500">Cargando mercados...</div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 pl-2 border-l-4 border-yellow-500 gap-4">
+                <h2 class="text-lg font-bold text-slate-200">Ranking</h2>
+                <div class="flex flex-col md:flex-row gap-2">
+                    <div class="bg-slate-800 p-1 rounded-lg flex gap-1">
+                        <button onclick="setMarket('merval')" id="mkt-merval" class="filter-btn">MERVAL</button>
+                        <button onclick="setMarket('sp500')" id="mkt-sp500" class="filter-btn active">S&P 500</button>
+                        <button onclick="setMarket('nasdaq')" id="mkt-nasdaq" class="filter-btn">NASDAQ</button>
+                    </div>
+                    <div class="bg-slate-800 p-1 rounded-lg flex gap-1">
+                        <button onclick="setPeriod('1d')" id="prd-1d" class="filter-btn active">1D</button>
+                        <button onclick="setPeriod('5d')" id="prd-5d" class="filter-btn">1S</button>
+                        <button onclick="setPeriod('1mo')" id="prd-1mo" class="filter-btn">1M</button>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="metric-card p-0 overflow-hidden"><div class="bg-slate-800/50 p-3 border-b border-slate-700 text-center text-green-400 font-bold text-xs">🔥 MAYOR ALZA</div><table class="w-full text-sm text-left"><tbody id="gainers-table"></tbody></table></div>
+                <div class="metric-card p-0 overflow-hidden"><div class="bg-slate-800/50 p-3 border-b border-slate-700 text-center text-red-400 font-bold text-xs">❄️ MAYOR CAÍDA</div><table class="w-full text-sm text-left"><tbody id="losers-table"></tbody></table></div>
+            </div>
+        </div>
+
+        <div id="tab-monitor" class="hidden fade-in">
+            <div class="flex gap-2 mb-8 max-w-lg mx-auto bg-slate-800 p-2 rounded-full border border-slate-700 shadow-xl">
+                <input id="tickerInput" type="text" placeholder="Ej: GGAL.BA" class="w-full bg-transparent border-none text-white px-4 focus:ring-0 uppercase placeholder-slate-500 font-bold" onkeypress="handleEnter(event)">
+                <button onclick="fetchData()" class="bg-blue-600 hover:bg-blue-500 text-white w-12 h-10 rounded-full flex items-center justify-center transition"><i class="fas fa-search"></i></button>
+            </div>
+
+            <div id="monitor-content" class="hidden">
+                <div class="text-center mb-4"><h1 id="company-name" class="text-3xl md:text-4xl font-black text-white tracking-tight">--</h1><p class="text-slate-500 text-sm font-bold uppercase tracking-widest mt-1">Monitor</p></div>
+
+                <div id="ext-hours-strip" class="hidden mb-6 bg-slate-800 border border-slate-700 rounded-lg p-2 flex justify-center gap-8 text-sm font-mono shadow-md">
+                    </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="metric-card flex flex-col justify-center relative bg-gradient-to-br from-slate-800 to-slate-900">
+                        <p class="metric-label text-slate-400 font-bold text-xs mb-1">PRECIO ACTUAL</p>
+                        <div class="flex items-baseline gap-2"><span id="moneda" class="text-xl text-slate-500 font-bold">--</span><h2 id="precio" class="text-6xl font-black text-white tracking-tighter">--</h2></div>
+                    </div>
+                    <div class="col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="metric-card text-center"><p class="metric-label mb-1">Día</p><div id="perf-dia" class="text-xl font-bold">--%</div></div>
+                        <div class="metric-card text-center"><p class="metric-label mb-1">Semana</p><div id="perf-sem" class="text-xl font-bold">--%</div></div>
+                        <div class="metric-card text-center"><p class="metric-label mb-1">Mes</p><div id="perf-mes" class="text-xl font-bold">--%</div></div>
+                        <div class="metric-card text-center"><p class="metric-label mb-1">Año</p><div id="perf-ano" class="text-xl font-bold">--%</div></div>
+                    </div>
+                </div>
+
+                <div id="fundamentals-row" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="metric-card">
+                        <p class="metric-label">Mkt Cap / Beta</p>
+                        <h3 id="mkt-cap" class="text-lg font-bold text-white">--</h3>
+                        <div class="flex items-center gap-2 mt-1"><h3 id="beta" class="text-lg font-bold text-slate-300">--</h3><span class="text-xs text-slate-500">Beta</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="flex justify-between"><div><p class="metric-label">P/E</p><h3 id="pe" class="text-lg font-bold text-white">--</h3></div><div class="text-right"><p class="metric-label">Fwd P/E</p><h3 id="fwd-pe" class="text-lg font-bold text-white">--</h3></div></div>
+                        <div class="mt-2 border-t border-slate-700 pt-2 flex justify-between items-center"><span class="text-xs text-slate-500">PEG</span><div id="peg-badge" class="hidden"></div><span id="peg" class="font-bold text-slate-200">--</span></div>
+                    </div>
+                    <div class="metric-card">
+                        <p class="metric-label mb-1">Dividendos</p>
+                        <h3 id="divYield" class="text-2xl font-bold text-emerald-400">--%</h3>
+                        <p id="divCurrency" class="text-xs text-slate-500"></p>
+                        <p class="text-[10px] text-slate-500 mt-1">Ex-Date: <span id="divDate" class="text-slate-300">--</span></p>
+                    </div>
+                    <div id="puntas-card" class="metric-card flex flex-col justify-center bg-slate-900/50">
+                        <div class="flex justify-between text-[10px] md:text-xs font-bold text-slate-500 mb-2 tracking-wider"><span>MEJOR COMPRA</span><span>MEJOR VENTA</span></div>
+                        <div class="flex justify-between items-center"><span id="bid" class="text-xl font-bold text-green-400">--</span><div class="h-8 w-px bg-slate-700"></div><span id="ask" class="text-xl font-bold text-red-400">--</span></div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 h-[600px] w-full rounded-xl overflow-hidden border border-slate-700 shadow-2xl mb-8">
+                    <div class="tradingview-widget-container h-full w-full">
+                        <div id="tv_chart_monitor" class="h-full w-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-heatmap" class="hidden fade-in">
+            <div class="flex justify-between items-center mb-6 pl-2 border-l-4 border-indigo-500"><h2 class="text-xl font-bold text-slate-200">Mapa de Calor (S&P 500)</h2></div>
+            <div class="tradingview-widget-container h-[800px] w-full bg-slate-800 rounded-xl border border-slate-700 overflow-hidden" style="height: 800px !important;">
+                <div class="tradingview-widget-container__widget" style="height: 100%;"></div>
+                <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-stock-heatmap.js" async>{ "dataSource": "SPX500", "grouping": "sector", "blockSize": "market_cap_basic", "blockColor": "change", "locale": "es", "symbolUrl": "", "colorTheme": "dark", "hasTopBar": true, "isDataSetEnabled": true, "isZoomEnabled": true, "hasSymbolTooltip": true, "width": "100%", "height": "800" }</script>
+            </div>
+        </div>
+
+        <div id="tab-crypto" class="hidden fade-in">
+            <div class="flex justify-between items-center mb-6 pl-2 border-l-4 border-orange-500">
+                <h2 class="text-xl font-bold text-slate-200">Mercado Cripto</h2>
+                <button onclick="loadCrypto()" class="bg-orange-600 hover:bg-orange-500 text-white px-4 py-1 rounded text-sm font-bold shadow-lg"><i class="fas fa-sync-alt mr-2"></i> Actualizar</button>
+            </div>
+            <div id="crypto-container" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+        </div>
+
+        <div id="tab-groups" class="hidden fade-in">
+            <div class="flex justify-between items-center mb-6 pl-2 border-l-4 border-pink-500">
+                <h2 class="text-xl font-bold text-slate-200">Sectores (USA)</h2>
+                <button onclick="loadGroups()" class="bg-pink-600 hover:bg-pink-500 text-white px-4 py-1 rounded text-sm font-bold shadow-lg">Actualizar</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="metric-card h-80"><h3 class="font-bold text-slate-300 mb-2 text-xs uppercase">Rendimiento Diario</h3><div id="chart-sect-day" class="h-full"></div></div>
+                <div class="metric-card h-80"><h3 class="font-bold text-slate-300 mb-2 text-xs uppercase">Rendimiento Semanal</h3><div id="chart-sect-week" class="h-full"></div></div>
+                <div class="metric-card h-80"><h3 class="font-bold text-slate-300 mb-2 text-xs uppercase">Rendimiento Mensual</h3><div id="chart-sect-month" class="h-full"></div></div>
+                <div class="metric-card h-80"><h3 class="font-bold text-slate-300 mb-2 text-xs uppercase">Rendimiento Anual</h3><div id="chart-sect-year" class="h-full"></div></div>
+            </div>
+        </div>
+
+        <div id="tab-dividends" class="hidden fade-in"><div class="flex justify-between items-center mb-6 pl-2 border-l-4 border-emerald-500"><h2 class="text-xl font-bold text-slate-200">Dividend Hub</h2><button onclick="resetDividends()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1 rounded text-sm font-bold shadow-lg">Recargar</button></div><div class="metric-card p-0 overflow-hidden mb-4"><table class="w-full text-left"><tbody id="dividend-table" class="text-sm divide-y divide-slate-700"></tbody></table></div><button id="btn-load-divs" onclick="loadDividends()" class="w-full bg-slate-800 text-slate-400 font-bold py-3 rounded border border-slate-700 hover:text-white hidden">Cargar más...</button></div>
+        <div id="tab-news" class="hidden fade-in"><div class="flex gap-2 mb-6"><input id="newsInput" type="text" placeholder="Buscar..." class="flex-grow bg-slate-800 border border-slate-700 rounded px-4 py-3"><button onclick="fetchNews()" class="bg-purple-600 hover:bg-purple-500 text-white px-6 rounded font-bold">Buscar</button></div><div id="news-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div></div>
+
+    </main>
+
+    <script>
+        // --- GLOBAL & INIT ---
+        let currentMarket='sp500', currentPeriod='1d'; let divSkip=0; const divLimit=5;
+        window.onload = function() { loadGlobalData(); loadMovers(); };
+
+        function switchTab(tabName) {
+            ['home','monitor','heatmap','crypto','groups','dividends','news'].forEach(t => { document.getElementById('tab-'+t).classList.add('hidden'); document.getElementById('btn-'+t).classList.remove('active'); });
+            document.getElementById('tab-'+tabName).classList.remove('hidden'); document.getElementById('btn-'+tabName).classList.add('active');
+            if(tabName==='dividends' && divSkip===0) loadDividends();
+            if(tabName==='crypto') loadCrypto();
+            if(tabName==='groups') loadGroups();
+        }
+        function handleEnter(e) { if(e.key === 'Enter') fetchData(); }
+
+        // --- 1. MONITOR BLINDADO & VISUAL ---
+        async function fetchData() {
+            const t = document.getElementById('tickerInput').value.toUpperCase(); if(!t) return;
+            try {
+                const d = await (await fetch(await fetch(`/api/quote/${t}`)).json();
+                
+                // Mostrar UI
+                document.getElementById('monitor-content').classList.remove('hidden');
+                document.getElementById('company-name').innerText = d.name; 
+                document.getElementById('moneda').innerText = d.moneda; 
+                document.getElementById('precio').innerText = (d.precio || 0).toLocaleString('es-AR', {minimumFractionDigits: 2});
+
+                // Pre/Post Market (Visual)
+                const ext = document.getElementById('ext-hours-strip');
+                if(d.pre_market || d.post_market) {
+                    ext.classList.remove('hidden');
+                    ext.innerHTML = `
+                        <span class="text-slate-400 font-bold text-xs md:text-sm">PRE-MARKET: <span class="text-white">${d.pre_market ? d.pre_market.toLocaleString() : "-"}</span></span>
+                        <span class="text-slate-600 mx-2">|</span>
+                        <span class="text-slate-400 font-bold text-xs md:text-sm">POST-MARKET: <span class="text-white">${d.post_market ? d.post_market.toLocaleString() : "-"}</span></span>
+                    `;
+                } else ext.classList.add('hidden');
+
+                // Rendimientos
+                const perf = (id, v) => {
+                    const el = document.getElementById(id);
+                    if(v === null || v === undefined) { el.innerText="-"; el.className="text-xl font-bold text-slate-500"; }
+                    else { el.innerText=(v>0?"+":"")+v.toFixed(2)+"%"; el.className=`text-xl font-bold ${v>=0?'text-green-400':'text-red-400'}`; }
+                };
+                perf('perf-dia', d.rendimiento.dia); perf('perf-sem', d.rendimiento.semana); perf('perf-mes', d.rendimiento.mes); perf('perf-ano', d.rendimiento.anio);
+
+                // --- FUNDAMENTALES ---
+                const fundRow = document.getElementById('fundamentals-row');
+                
+                if (d.type === 'CRYPTOCURRENCY') {
+                    fundRow.classList.add('hidden');
+                } else {
+                    fundRow.classList.remove('hidden');
+                    const safeFmt = (val, suffix="") => (val !== null && val !== undefined) ? val.toFixed(2) + suffix : "-";
+
+                    // Market Cap: Si es .BA agregamos USD (porque viene de ADR)
+                    let mc = d.valuacion.market_cap || "-";
+                    if(t.includes('.BA') && mc !== "-") mc += " USD";
+                    document.getElementById('mkt-cap').innerText = mc;
+
+                    document.getElementById('beta').innerText = safeFmt(d.valuacion.beta);
+                    document.getElementById('pe').innerText = safeFmt(d.valuacion.pe);
+                    document.getElementById('fwd-pe').innerText = safeFmt(d.valuacion.forward_pe);
+                    
+                    // PEG Badge
+                    const peg = d.valuacion.peg;
+                    const pb = document.getElementById('peg-badge'); 
+                    document.getElementById('peg').innerText = safeFmt(peg);
+                    if(peg !== null && peg !== undefined) {
+                        pb.classList.remove('hidden');
+                        pb.innerText = peg < 1 ? "BARATO" : (peg > 2 ? "CARO" : "JUSTO"); 
+                        pb.className = `text-xs px-2 py-1 rounded font-bold ${peg < 1 ? 'bg-green-900 text-green-400' : (peg > 2 ? 'bg-red-900 text-red-400' : 'bg-yellow-900 text-yellow-400')}`;
+                    } else pb.classList.add('hidden');
+                    
+                    document.getElementById('divYield').innerText = safeFmt(d.dividendos.yield, "%");
+                    document.getElementById('divCurrency').innerText = d.dividendos.currency || "";
+                    document.getElementById('divDate').innerText = d.dividendos.ex_date || "-";
+                    
+                    // Puntas Visuales
+                    document.getElementById('bid').innerText = (d.puntas.bid ? d.puntas.bid.toLocaleString() : "-");
+                    document.getElementById('ask').innerText = (d.puntas.ask ? d.puntas.ask.toLocaleString() : "-");
+                }
+
+                // --- GRÁFICO ---
+                document.getElementById('tv_chart_monitor').innerHTML = ""; 
+                let tvSymbol = t;
+                if(t.includes('.BA')) tvSymbol = "BCBA:" + t.replace('.BA','');
+                else if(d.type === 'CRYPTOCURRENCY' && !t.includes('-')) tvSymbol = "BINANCE:" + t + "USDT";
+
+                new TradingView.widget({
+                    "autosize": true, "symbol": tvSymbol, "interval": "D", "timezone": "America/Argentina/Buenos_Aires",
+                    "theme": "dark", "style": "1", "locale": "es", "toolbar_bg": "#f1f3f6", "enable_publishing": false,
+                    "hide_side_toolbar": false, "allow_symbol_change": true, "container_id": "tv_chart_monitor"
+                });
+
+            } catch(e) { console.error(e); alert("No se pudo cargar el Ticker. Verifica que sea correcto."); }
+        }
+
+        // --- 2. GROUPS (VISUAL OK) ---
+        async function loadGroups() {
+            if(document.getElementById('chart-sect-day').innerHTML !== "") return;
+            try {
+                const data = await (await fetch('/api/groups')).json();
+                
+                const renderBar = (id, prop) => {
+                    // Mapeo {x, y} para ApexCharts
+                    const sData = data.map(d => ({ x: d.name, y: d[prop] }));
+                    new ApexCharts(document.getElementById(id), {
+                        series: [{ data: sData }],
+                        chart: { type: 'bar', height: 260, toolbar: {show:false}, background: 'transparent' },
+                        plotOptions: { 
+                            bar: { horizontal: true, borderRadius: 3, barHeight: '70%', colors: { ranges: [{ from: -100, to: -0.01, color: '#f87171' }, { from: 0, to: 100, color: '#4ade80' }] } } 
+                        },
+                        xaxis: { labels: {show:false}, axisTicks:{show:false}, axisBorder:{show:false} },
+                        yaxis: { labels: {style:{colors:'#cbd5e1', fontSize:'11px', fontWeight:600}, maxWidth:110} },
+                        dataLabels: { enabled: true, formatter: v => v.toFixed(2)+"%", style:{colors:['#fff'], fontSize:'10px'}, dropShadow:{enabled:true} },
+                        grid: { show: false }, tooltip: { theme: 'dark' }
+                    }).render();
+                };
+                renderBar('chart-sect-day', 'dia'); renderBar('chart-sect-week', 'semana'); 
+                renderBar('chart-sect-month', 'mes'); renderBar('chart-sect-year', 'anio');
+            } catch(e) {}
+        }
+
+        // --- 3. CRYPTO (VISUAL HOME STYLE) ---
+        async function loadCrypto() {
+            const c = document.getElementById('crypto-container'); if(c.children.length>1) return;
+            c.innerHTML='<div class="col-span-full text-center text-slate-500"><i class="fas fa-circle-notch fa-spin"></i></div>';
+            try {
+                const d = await (await fetch('/api/crypto')).json(); c.innerHTML="";
+                d.forEach((x,i)=>{
+                    const cid=`ch-c-${i}`;
+                    const div=document.createElement('div'); div.className="metric-card relative group hover:border-orange-500/50 transition cursor-pointer";
+                    div.onclick = () => goToMonitor(x.full_symbol);
+                    div.innerHTML=`<div class="flex justify-between items-start mb-2"><div><h3 class="font-bold text-white text-lg">${x.symbol}</h3></div><span class="${x.change>=0?'text-green-400':'text-red-400'} font-bold bg-slate-900/50 px-2 py-1 rounded text-sm">${x.change>0?'+':''}${x.change.toFixed(2)}%</span></div><h2 class="text-2xl font-black text-white mb-2">$${x.price.toLocaleString('en-US',{minimumFractionDigits:2})}</h2><div id="${cid}" style="min-height:80px"></div>`;
+                    c.appendChild(div);
+                    // STYLE: AREA + GRADIENT
+                    new ApexCharts(document.getElementById(cid),{
+                        series:[{name:"Precio", data:x.history}],
+                        chart:{type:'area',height:80,sparkline:{enabled:true}},
+                        stroke:{curve:'smooth',width:2},
+                        fill:{type:'gradient',gradient:{shadeIntensity:1,opacityFrom:0.4,opacityTo:0.05,stops:[0,100]}},
+                        colors:[x.change>=0?'#fb923c':'#f87171'],
+                        tooltip:{theme:'dark',x:{show:false}}
+                    }).render();
+                });
+            } catch(e) {}
+        }
+
+        // --- FUNCIONES BASE ---
+        async function resetDividends() { divSkip = 0; document.getElementById('dividend-table').innerHTML = ""; loadDividends(); }
+        async function loadDividends() {
+            const btn = document.getElementById('btn-load-divs'); const table = document.getElementById('dividend-table');
+            if (divSkip === 0) table.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-slate-500"><i class="fas fa-circle-notch fa-spin text-emerald-500 mr-2"></i> Buscando...</td></tr>'; else { btn.innerText = "Buscando..."; btn.disabled = true; }
+            try {
+                const res = await (await fetch(`/api/dividend-hub?skip=${divSkip}&limit=${divLimit}`)).json();
+                if (divSkip === 0) table.innerHTML = "";
+                res.data.forEach(d => { table.innerHTML += `<tr class="hover:bg-slate-800 transition border-b border-slate-700/50"><td class="p-4"><div class="font-bold text-white flex items-center gap-2"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300">${d.symbol.substring(0,2)}</div>${d.name}</div><div class="text-xs text-slate-500 ml-10">${d.symbol}</div></td><td class="p-4 text-right text-slate-300 font-mono font-bold">$${d.price.toFixed(2)}</td><td class="p-4 text-right"><div class="font-black text-emerald-400 text-lg">${d.yield.toFixed(2)}%</div><div class="text-xs text-emerald-700 font-bold uppercase">Anual USD</div></td><td class="p-4 text-right text-slate-400 font-mono text-xs">${d.ex_date}</td><td class="p-4 text-center"><button onclick="goToMonitor('${d.symbol}')" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-full text-xs font-bold">Ver</button></td></tr>`; });
+                divSkip = res.next_skip; if(res.has_more) { btn.classList.remove('hidden'); btn.innerText = "Cargar más..."; btn.disabled = false; } else { btn.classList.add('hidden'); }
+            } catch(e) {}
+        }
+        function setMarket(m){ currentMarket=m; ['merval','sp500','nasdaq'].forEach(k=>document.getElementById('mkt-'+k).classList.remove('active','bg-blue-600','text-white')); document.getElementById('mkt-'+m).classList.add('active','bg-blue-600','text-white'); loadMovers(); }
+        function setPeriod(p){ currentPeriod=p; ['1d','5d','1mo'].forEach(k=>document.getElementById('prd-'+k).classList.remove('active','bg-blue-600','text-white')); document.getElementById('prd-'+p).classList.add('active','bg-blue-600','text-white'); loadMovers(); }
+        async function loadMovers() {
+            const d = await (await fetch(`/api/movers/${currentMarket}/${currentPeriod}`)).json();
+            const fill=(id,l)=>{document.getElementById(id).innerHTML=""; l.forEach(i=>document.getElementById(id).innerHTML+=`<tr class="border-b border-slate-700/50 hover:bg-slate-800 transition cursor-pointer" onclick="goToMonitor('${i.symbol}')"><td class="p-3 font-bold text-slate-200">${i.symbol}</td><td class="p-3 text-right text-slate-400">$${i.price.toFixed(2)}</td><td class="p-3 text-right font-bold ${i.change>=0?'text-green-400':'text-red-400'}">${i.change>0?'+':''}${i.change.toFixed(2)}%</td></tr>`);}
+            fill('gainers-table',d.gainers); fill('losers-table',d.losers);
+        }
+        async function loadGlobalData() {
+            const d = await (await fetch(await fetch('/api/global')).json();
+            const db = document.getElementById('dolar-bar'); db.innerHTML = ""; if(d.dolares) Object.values(d.dolares).forEach(v=>db.innerHTML+=`<div class="dolar-card text-center"><p class="text-xs text-slate-400 font-bold uppercase mb-1">${v.nombre}</p><div class="flex justify-between text-sm px-2"><div class="text-left"><span class="text-xs text-slate-500">C</span><br>$${v.compra}</div><div class="text-right"><span class="text-xs text-slate-500">V</span><br><span class="text-white font-bold">$${v.venta}</span></div></div></div>`);
+            const c = document.getElementById('home-charts-container'); c.innerHTML=""; [{k:'merval',t:'MERVAL',c:'#00E396'},{k:'sp500',t:'S&P 500',c:'#FEB019'},{k:'dow',t:'DOW',c:'#008FFB'}].forEach(cfg=>{const i=d.indices[cfg.k]; if(i){const div=document.createElement('div');div.className="metric-card relative";div.innerHTML=`<div class="flex justify-between items-center mb-2"><h3 class="font-bold text-slate-300 flex items-center">${cfg.t} <span class="text-xs border px-1 ml-2 rounded ${i.moneda==='USD'?'border-green-600 text-green-500':'border-blue-600 text-blue-500'}">${i.moneda}</span></h3><span class="${i.variacion>=0?'text-green-400':'text-red-400'} font-bold">${i.variacion.toFixed(2)}%</span></div><h2 class="text-2xl font-black text-white mb-2">${i.precio.toLocaleString('es-AR',{maximumFractionDigits:0})}</h2><div id="chart-${cfg.k}" style="min-height:200px"></div>`;c.appendChild(div);new ApexCharts(document.querySelector(`#chart-${cfg.k}`),{series:[{name:"Precio",data:i.history}],chart:{type:'area',height:200,toolbar:{show:false},zoom:{enabled:false}},stroke:{curve:'straight',width:2},fill:{type:'gradient',gradient:{shadeIntensity:1,opacityFrom:0.4,opacityTo:0.05,stops:[0,100]}},colors:[i.variacion>=0?'#4ade80':'#f87171'],dataLabels:{enabled:false},xaxis:{type:'datetime',labels:{style:{colors:'#64748b'},format:'dd MMM'},axisBorder:{show:false},axisTicks:{show:false}},yaxis:{labels:{style:{colors:'#64748b'},formatter:(v)=>v.toFixed(0)}},grid:{borderColor:'#334155',strokeDashArray:4,show:true},tooltip:{theme:'dark'}}).render();}});
+        }
+        async function fetchNews(){const q=document.getElementById('newsInput').value;const c=document.getElementById('news-container');c.innerHTML='<p class="col-span-2 text-center text-slate-500">Buscando...</p>';const d=await(await fetch(await fetch(`/api/news/${q}`)).json();c.innerHTML="";d.forEach(n=>c.innerHTML+=`<a href="${n.link}" target="_blank" class="bg-slate-800 p-4 rounded-lg border border-slate-700 hover:border-purple-500 transition group"><h4 class="font-bold text-slate-200 group-hover:text-purple-400 mb-2 line-clamp-2">${n.titulo}</h4><div class="flex justify-between text-xs text-slate-500"><span>${n.fuente}</span><span>${n.fecha}</span></div></a>`);}
+        function goToMonitor(t) { document.getElementById('tickerInput').value=t; switchTab('monitor'); fetchData(); }
+    </script>
+</body>
+</html>
